@@ -13,7 +13,7 @@ from vae.EMD.emd import EmdDistance
 from _init_ import *
 
 # ==================Model======================
-obs = (3, 32, 32)
+obs = (1, 28, 28)
 input_channels = obs[0]
 
 net = PixelCNN(nr_resnet=args.nr_resnet, nr_filters=args.nr_filters,
@@ -23,9 +23,8 @@ net.apply(Helper.weights_init)
 optimizer = optim.Adam(net.parameters(), lr=3e-4, betas=(0.5, 0.9))
 scheduler = lr_scheduler.CyclicLR(optimizer, base_lr=args.lr, max_lr = 0.01, gamma=1.0, cycle_momentum=False)
 
-loss_fn = EmdDistance()
-loss_op   = lambda real, fake : discretized_mix_logistic_loss_pc(real, fake)
-sample_op = lambda x : sample_from_discretized_mix_logistic(x, args.nr_logistic_mix)
+loss_op   = lambda real, fake : discretized_mix_logistic_loss_1d(real, fake)
+sample_op = lambda x : sample_from_discretized_mix_logistic_1d(x, args.nr_logistic_mix)
 
 net_path = os.path.join(model_path, 'net.pth')
 
@@ -33,20 +32,19 @@ net_path = os.path.join(model_path, 'net.pth')
 rescaling     = lambda x : (x - .5) * 2.
 rescaling_inv = lambda x : .5 * x  + .5
 
-sorted_data = Provider.load_data(dataset_path, args.mode_space, space_dim, num_hiters,
-                            normalized = True, renew = args.flag_renew_data)
+train_loader = torch.utils.data.DataLoader(datasets.MNIST(args.data_dir, download=True,
+                        train=True, transform=ds_transforms), batch_size=args.batch_size,
+                            shuffle=True, **kwargs)
+
+test_loader  = torch.utils.data.DataLoader(datasets.MNIST(args.data_dir, train=False,
+                transform=ds_transforms), batch_size=args.batch_size, shuffle=True, **kwargs)
+
+loss_op   = lambda real, fake : discretized_mix_logistic_loss_1d(real, fake)
+sample_op = lambda x : sample_from_discretized_mix_logistic_1d(x, args.nr_logistic_mix)
+
 # [N, 1024, 3] map to [-1, 1]
 trainset = rescaling(sorted_data)
-# [N, 32, 32, 3]
-trainset = SFC.convert1dto2d(trainset)
-# reshape [N, 3, 32, 32]
-trainset = torch.Tensor(trainset)
-# original hilbert sort
-# trainset = trainset.view(-1, 32, 32, 3)
-# careful here
-trainset = trainset.permute(0, 3, 2, 1)
-## overfit
-trainset = trainset[0:1, :, :, :]
+
 dataloader=DataLoader(trainset, batch_size = args.batch_size,
                         shuffle = True, drop_last = True)
 
