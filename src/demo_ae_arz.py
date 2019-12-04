@@ -9,8 +9,6 @@ from _init_ import *
 from pixelcnnpp.model import *
 from pixelcnnpp.utils import *
 
-from vae.models.AutoEncoder import PointCloudAutoEncoder
-from vae.EMD.emd import EmdDistance
 from vae.ops import *
 
 import warnings
