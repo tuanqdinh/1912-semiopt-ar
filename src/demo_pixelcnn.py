@@ -32,7 +32,7 @@ net_path = os.path.join(model_path, 'net.pth')
 rescaling     = lambda x : (x - .5) * 2.
 rescaling_inv = lambda x : .5 * x  + .5
 
-train_loader = torch.utils.data.DataLoader(datasets.MNIST(args.data_dir, download=True,
+train_loader = torch.utils.data.DataLoader(datasets.MNIST(args.dataset_path, download=True,
                         train=True, transform=ds_transforms), batch_size=args.batch_size,
                             shuffle=True, **kwargs)
 
