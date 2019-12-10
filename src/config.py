@@ -7,8 +7,8 @@
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset_name', type=str, default='plane') # required
-parser.add_argument('--model_name', type=str, default='pixel-sfc') #required
+parser.add_argument('--dataset_name', type=str, default='MNIST') # required
+parser.add_argument('--model_name', type=str, default='pixel-semi') #required
 parser.add_argument('--mode_space', type=int, default=3) #required
 parser.add_argument('--result_path', type=str, default='../result', help='output path')
 parser.add_argument('--data_path', type=str, default='../data', help='path for data')
