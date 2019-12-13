@@ -85,6 +85,9 @@ elif 'cifar' in args.dataset :
 else :
     raise Exception('{} dataset not in {mnist, cifar10}'.format(args.dataset))
 
+model = PixelCNN(nr_resnet=args.nr_resnet, nr_filters=args.nr_filters,
+            input_channels=input_channels, nr_logistic_mix=args.nr_logistic_mix)
+model = model.cuda()
 
 if args.load_params:
     load_part_of_model(model, args.load_params)

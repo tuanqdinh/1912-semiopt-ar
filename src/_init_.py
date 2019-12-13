@@ -16,6 +16,9 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from torchvision import datasets, transforms, utils
+
+from PerceptualSimilarity import models
 
 from config import args
 from utils.helper import Helper
@@ -25,12 +28,6 @@ from utils.sfc import SFC
 
 # CONSTANTS ######################3
 # name, space dim, number of points
-DATASETS = {'plane': (3, 1024), 'chair': (3, 1024), 'mnist': (3, 2048), 'line': (2, 128), 'square': (2, 128)}
-# number of hilbert iterations
-num_hiters=10
-
-################## Setting #######################
-space_dim, in_dim=DATASETS[args.dataset_name]
 
 model_name=args.model_name + '-' + args.dataset_name
 dataset_path=os.path.join(args.data_path, args.dataset_name)
@@ -53,6 +50,8 @@ writer=SummaryWriter(comment = model_name, log_dir = writer_path)
 
 #####====================== Data ================######
 device=Helper.__device__
+
+loss_fn = models.PerceptualLoss(model='net-lin', net='alex', use_gpu=True, gpu_ids=[0])
 
 ####====== Modules =======####
 def log_loss(epoch, step, total_step, loss, start_time):

@@ -2,12 +2,11 @@
 #
 # License: MIT License
 ###Implementation of the paper [Genevay et al., 2016]: (https://arxiv.org/pdf/1605.08527.pdf)
-
+import torch
 import numpy as np
 import ot
 import matplotlib.pylab as pl
 import time
-
 
 
 def coordinate_gradient(eps, nu, v, C, i):
@@ -34,10 +33,9 @@ def coordinate_gradient(eps, nu, v, C, i):
 
     coordinate gradient : np.ndarray(nt,)
     '''
-
-    r = c[i,:] - v
-    exp_v = np.exp(-r/eps) * nu
-    khi = exp_v/(np.sum(exp_v)) #= [exp(r_l/eps)*nu[l]/sum_vec for all l]
+    r = C[i,:] - v
+    exp_v = torch.exp(-r/eps) * nu
+    khi = exp_v/(torch.sum(exp_v)) #= [exp(r_l/eps)*nu[l]/sum_vec for all l]
     return nu - khi #grad
 
 def averaged_sgd_entropic_transport(epsilon, mu, nu, C, n_source, n_target, nb_iter, lr):
@@ -73,8 +71,8 @@ def averaged_sgd_entropic_transport(epsilon, mu, nu, C, n_source, n_target, nb_i
         optimization vector
     '''
 
-    cur_v = np.zeros(n_target)
-    ave_v = np.zeros(n_target)
+    cur_v = torch.zeros(n_target).cuda()
+    ave_v = torch.zeros(n_target).cuda()
     for cur_iter in range(nb_iter):
         k = cur_iter + 1
         i = np.random.randint(n_source)
@@ -109,11 +107,11 @@ def c_transform_entropic(epsilon, nu, v, C, n_source, n_target):
     u : np.ndarray(ns,)
     '''
 
-    u = np.zeros(n_source)
+    u = torch.zeros(n_source).cuda()
     for i in range(n_source):
-        r = c[i,:] - v
-        exp_v = np.exp(-r/epsilon) * nu
-        u[i] = - epsilon * np.log(np.sum(exp_v))
+        r = C[i,:] - v
+        exp_v = torch.exp(-r/epsilon) * nu
+        u[i] = - epsilon * torch.log(torch.sum(exp_v))
     return u
 
 def transportation_matrix_entropic(epsilon, mu, nu, C, n_source, n_target, nb_iter, lr):
@@ -150,8 +148,47 @@ def transportation_matrix_entropic(epsilon, mu, nu, C, n_source, n_target, nb_it
 
     opt_v = averaged_sgd_entropic_transport(epsilon, mu, nu, C, n_source, n_target, nb_iter, lr)
     opt_u = c_transform_entropic(epsilon, nu, opt_v, C, n_source, n_target)
-    pi = np.exp((opt_u[:, None] + opt_v[None, :] - c[:, :])/eps) * mu[:, None] * nu[None, :]
+    pi = torch.exp((opt_u[:, None] + opt_v[None, :] - C[:, :])/epsilon) * (mu[:, None] * nu[None, :])
     return pi, opt_v, opt_u
+
+
+def perceptual_loss(loss_fn, im0, im1):
+    d = loss_fn.forward(im0,im1)
+    return d
+
+def semi_opt(nu_data, mu_data, px, loss_fn=None):
+    """
+        nu_data [Nv, 1, 28, 28]: target discrete
+        mu_data [Nu, 1, 28, 28]: source continuous
+        mu [Nu, 30, 28, 28]: params of distributions
+    """
+    eps = 1
+    nb_iter = 10000
+    lr = 0.1
+
+    # estimate mu, nu and c
+    n_target = nu_data.shape[0]
+    n_source = mu_data.shape[0]
+    _, C, H, W = mu_data.shape
+    gap = (64 - W)//2
+    p2d = (gap, gap, gap, gap)
+    X_source = torch.nn.functional.pad(mu_data, p2d, 'replicate', 0)
+    Y_target = torch.nn.functional.pad(nu_data, p2d, 'replicate', 0)
+    # c = loss_fn.forward(X_source[:, None], Y_target[None, :])
+    X_source = X_source.unsqueeze(1).expand(n_source, n_target, C, 64, 64).contiguous().view(n_source* n_target, C, 64, 64)
+    Y_target = Y_target.unsqueeze(1).expand(n_target, n_source, C, 64, 64).permute(1, 0, 2, 3, 4).contiguous().view(n_source* n_target, C, 64, 64)
+    c = loss_fn.forward(X_source, Y_target).view(n_source, n_target)
+    # [Nu]
+    mu = px * (1./torch.sum(px))
+    # [Nv]
+    nu = torch.ones(n_target) / n_target
+    nu = nu.cuda()
+
+    # calculate wasserstein distance
+    asgd_pi, opt_v, opt_u = transportation_matrix_entropic(eps, mu, nu, c, n_source, n_target, nb_iter, lr)
+    w = (opt_v * nu).sum() + (opt_u * mu).sum() - eps * asgd_pi.sum()
+
+    return w
 
 if __name__ == '__main__':
 #Constants
@@ -162,7 +199,7 @@ if __name__ == '__main__':
     lr = 0.1
 
 #Initialization
-    mu = np.random.random(n_source)
+    mu = torch.rand(n_source)
     mu *= (1./np.sum(mu))
     X_source = np.arange(n_source)
     nu = np.random.random(n_target)
@@ -175,6 +212,7 @@ if __name__ == '__main__':
 #Check Code
     start_asgd = time.time()
     asgd_pi, opt_v, opt_u = transportation_matrix_entropic(eps, mu, nu, c, n_source, n_target, nb_iter, lr)
+    w = (opt_v * nu).sum() + (opt_u * mu).sum() - eps * asgd_pi.sum()
     end_asgd = time.time()
     print("The transportation matrix from SAG is : \n", asgd_pi)
 
@@ -189,8 +227,6 @@ if __name__ == '__main__':
 
     print("asgd time : ", end_asgd - start_asgd)
     print("sinkhorn time : ", end_sinkhorn - start_sinkhorn)
-
-    from IPython import embed; embed()
 
 #### Plot Results
     # pl.figure(4, figsize=(5, 5))
