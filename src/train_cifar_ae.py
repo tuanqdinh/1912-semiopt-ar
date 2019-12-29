@@ -76,6 +76,7 @@ def train(args, epoch, model, criterion, train_loader, optimizer, total_step):
         if batch_idx % args.log_step == 0:
             log_loss(epoch, batch_idx, total_step, loss, start_time)
             start_time = time.time()
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
