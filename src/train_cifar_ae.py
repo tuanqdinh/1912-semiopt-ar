@@ -35,6 +35,7 @@ def main():
     dim_embed = 512
     model = AE(dim_embed).cuda()
     #model = AE2().cuda()
+    ae_path = os.path.join(model_path, 'ae_path.pth')
 
     # Optimizer
     optimizer = optim.Adam(model.parameters(), args.lr, betas=(0.5, 0.9))
@@ -65,7 +66,10 @@ def main():
             utils.save_image(inp, os.path.join(sample_path, 'inp.png'))
             utils.save_image(out, os.path.join(sample_path, 'out.png'))
             
-            break            
+            break
+
+    print('Saving the model')
+    torch.save(model.state_dict(), ae_path)
             
         
 def train(args, epoch, model, criterion, train_loader, optimizer, total_step):

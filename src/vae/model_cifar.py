@@ -104,7 +104,6 @@ class AE(nn.Module):
 
         self.relu = nn.ReLU()
 
-
     def encode(self, x):
         conv1 = self.relu(self.bn1(self.conv1(x)))
         conv2 = self.relu(self.bn2(self.conv2(conv1)))
@@ -113,7 +112,6 @@ class AE(nn.Module):
 
         fc1 = self.fc1(conv4)
         return fc1
-
 
     def decode(self, z, latent=False):
         fc2 = self.relu(self.fc_bn2(self.fc2(z))).view(-1, 16, 8, 8)
@@ -125,7 +123,6 @@ class AE(nn.Module):
         if latent:
             return latents, out
         return out
-
 
     def forward(self, x):
         z = self.encode(x)
