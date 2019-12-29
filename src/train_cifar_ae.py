@@ -1,8 +1,9 @@
 from _init_ import *
-from vae.model_cifar import AE
+from vae.model_cifar import AE, AE2
 import pdb
 
 import warnings
+
 
 class UnNormalize(object):
     def __init__(self, mean, std):
@@ -14,13 +15,14 @@ class UnNormalize(object):
             t.mul_(s).add_(m)
         return tensor
 
+
 def main():
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
     # Dataset loading
-    transform = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    transform = transforms.Compose([transforms.ToTensor(),])
+                                    #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     trainset = datasets.CIFAR10(root='./data', train=True,
                                 download=True, transform=transform)
     train_loader = DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=8)
@@ -30,20 +32,22 @@ def main():
     test_loader = DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=8)
 
     # Model
-    dim_embed = 128
+    dim_embed = 512
     model = AE(dim_embed).cuda()
+    #model = AE2().cuda()
 
     # Optimizer
-    optimizer = optim.Adam(model.parameters(), args.lr)
+    optimizer = optim.Adam(model.parameters(), args.lr, betas=(0.5, 0.9))
 
-    criterion = nn.MSELoss()
+    #criterion = nn.MSELoss()
+    criterion = nn.BCELoss()
 
     total_step = len(trainset) // args.batch_size
     for epoch in range(args.num_epochs):
         train(args, epoch, model, criterion, train_loader, optimizer, total_step)
         test(args, epoch, model, criterion, test_loader)
 
-    transf = transforms.Compose([UnNormalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    #transf = transforms.Compose([UnNormalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         
     with torch.no_grad():
         model.eval()
@@ -51,7 +55,8 @@ def main():
             input = input.cuda()
             output = model(input)
             
-            raw_images = [transf(image.detach().cpu()) for image in input]
+            #raw_images = [transf(image.detach().cpu()) for image in input]
+            raw_images = [image.detach().cpu() for image in input]
             inp = utils.make_grid(raw_images, nrow=4)
             
             output_images = [image.detach().cpu() for image in output]
@@ -60,8 +65,7 @@ def main():
             utils.save_image(inp, os.path.join(sample_path, 'inp.png'))
             utils.save_image(out, os.path.join(sample_path, 'out.png'))
             
-            break
-            
+            break            
             
         
 def train(args, epoch, model, criterion, train_loader, optimizer, total_step):
@@ -72,7 +76,7 @@ def train(args, epoch, model, criterion, train_loader, optimizer, total_step):
         #if batch_idx > 100 : break
         input = input.cuda()
         output = model(input)
-        loss = criterion(input, output)
+        loss = criterion(output, input)
         if batch_idx % args.log_step == 0:
             log_loss(epoch, batch_idx, total_step, loss, start_time)
             start_time = time.time()
@@ -80,13 +84,14 @@ def train(args, epoch, model, criterion, train_loader, optimizer, total_step):
         loss.backward()
         optimizer.step()
 
+
 def test(args, epoch, model, criterion, test_loader):
     loss_logger = AverageMeter()
     model.eval()
     for batch_idx, (input, _) in enumerate(test_loader):
         input = input.cuda()
         output = model(input)
-        loss = criterion(input, output)
+        loss = criterion(output, input)
         loss_logger.update(loss.item())
 
     print('Test loss ', loss_logger.avg)
