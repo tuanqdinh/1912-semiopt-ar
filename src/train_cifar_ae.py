@@ -54,9 +54,9 @@ def main():
             raw_images = [transf(image.detach().cpu()) for image in input]
             inp = utils.make_grid(raw_images, nrow=4)
             
-            output_images = [transf(image.detach().cpu()) for image in output]
+            output_images = [image.detach().cpu() for image in output]
             out = utils.make_grid(output_images, nrow=4)
-
+            #pdb.set_trace()
             utils.save_image(inp, os.path.join(sample_path, 'inp.png'))
             utils.save_image(out, os.path.join(sample_path, 'out.png'))
             
@@ -69,7 +69,7 @@ def train(args, epoch, model, criterion, train_loader, optimizer, total_step):
     model.train()
     for batch_idx, (input, _) in enumerate(train_loader):
         #pdb.set_trace()
-        if batch_idx > 100 : break
+        #if batch_idx > 100 : break
         input = input.cuda()
         output = model(input)
         loss = criterion(input, output)
