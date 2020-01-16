@@ -73,8 +73,62 @@ class VAE(nn.Module):
         z = self.reparameterize(mu, logvar)
         return self.decode(z, latent), mu, logvar
 
-
 class AE(nn.Module):
+    def __init__(self, dim_embed=128):
+        super(AE, self).__init__()
+
+        # Encoder layers
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(32)
+        self.conv3 = nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(32)
+        self.conv4 = nn.Conv2d(32, 16, kernel_size=3, stride=2, padding=1, bias=False)
+        self.bn4 = nn.BatchNorm2d(16)
+        self.fc1 = nn.Linear(8 * 8 * 16, dim_embed)
+
+        # Decoder
+        self.fc2 = nn.Linear(dim_embed, 8 * 8 * 16)
+        self.fc_bn2 = nn.BatchNorm1d(8 * 8 * 16)
+        self.conv5 = nn.ConvTranspose2d(16, 32, kernel_size=3, stride=2, padding=1,
+                                        output_padding=1, bias=False)
+        self.bn5 = nn.BatchNorm2d(32)
+        self.conv6 = nn.ConvTranspose2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn6 = nn.BatchNorm2d(32)
+        self.conv7 = nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1,
+                                        output_padding=1, bias=False)
+        self.bn7 = nn.BatchNorm2d(16)
+        self.conv8 = nn.ConvTranspose2d(16, 3, kernel_size=3, stride=1, padding=1, bias=False)
+
+        self.relu = nn.ReLU()
+
+    def encode(self, x):
+        conv1 = self.relu(self.bn1(self.conv1(x)))
+        conv2 = self.relu(self.bn2(self.conv2(conv1)))
+        conv3 = self.relu(self.bn3(self.conv3(conv2)))
+        conv4 = self.relu(self.bn4(self.conv4(conv3))).view(-1, 8 * 8 * 16)
+
+        fc1 = self.fc1(conv4)
+        return fc1
+
+    def decode(self, z, latent=False):
+        fc2 = self.relu(self.fc_bn2(self.fc2(z))).view(-1, 16, 8, 8)
+        conv5 = self.relu(self.bn5(self.conv5(fc2)))
+        conv6 = self.relu(self.bn6(self.conv6(conv5)))
+        latents = self.relu(self.bn7(self.conv7(conv6)))
+        out = self.conv8(latents).view(-1, 3, 32, 32)
+        out = torch.sigmoid(out)
+        if latent:
+            return latents, out
+        return out
+
+    def forward(self, x):
+        z = self.encode(x)
+        return self.decode(z)
+
+    
+class AE3(nn.Module):
     def __init__(self, dim_embed=128):
         super(AE, self).__init__()
 

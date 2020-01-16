@@ -32,7 +32,7 @@ def main():
     test_loader = DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=8)
 
     # Model
-    dim_embed = 512
+    dim_embed = 128
     model = AE(dim_embed).cuda()
     #model = AE2().cuda()
     ae_path = os.path.join(model_path, 'ae_path.pth')
