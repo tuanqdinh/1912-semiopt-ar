@@ -18,13 +18,11 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, transforms, utils
 
-from PerceptualSimilarity import models
-
-from config import args
+from perceptual_loss import models
+from configs import args
 from utils.helper import Helper
 from utils.provider import Provider
 from utils.plotter import Plotter
-from utils.sfc import SFC
 
 # CONSTANTS ######################3
 # name, space dim, number of points
